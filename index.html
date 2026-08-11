@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#12262B" />
+<title>Mi Libreta</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12262B; --bg-deep:#0C1C20; --paper:#F2EFE7; --paper-dim:#8FA0A0;
+    --ink:#0F2027; --gold:#D4A54A; --green:#4C9A6D; --red:#C1503D;
+    --card:#173339; --line:#25464C;
+    --font-display:'Fraunces',Georgia,serif; --font-body:'IBM Plex Sans',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; background: var(--bg-deep); }
+  body {
+    font-family: var(--font-body);
+    background: linear-gradient(180deg, var(--bg-deep) 0%, var(--bg) 100%);
+    min-height: 100vh; min-height: 100dvh;
+    color: var(--paper);
+  }
+  #app { max-width: 480px; margin: 0 auto; position: relative; padding-bottom: 100px; min-height: 100vh; }
+  input, select, textarea, button { font-family: var(--font-body); }
+  input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+  button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  ::-webkit-scrollbar { display: none; }
+  button { cursor: pointer; }
+
+  header { padding: 28px 20px 16px; padding-top: max(28px, env(safe-area-inset-top)); display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--line); }
+  .eyebrow { margin:0; font-size:11px; letter-spacing:.14em; color: var(--gold); font-family: var(--font-mono); }
+  h1 { margin:4px 0 0; font-family: var(--font-display); font-size:26px; font-weight:600; color: var(--paper); }
+  .stamp { display:flex; flex-direction:column; align-items:flex-end; border:1.5px solid var(--gold); border-radius:10px; padding:6px 12px; transform: rotate(-2deg); }
+  .stamp-label { font-family: var(--font-mono); font-size:9px; letter-spacing:.12em; color: var(--gold); }
+  .stamp-amount { font-family: var(--font-mono); font-size:15px; font-weight:600; }
+
+  main { padding: 16px 20px 20px; }
+  .summary { color: var(--paper-dim); font-size:13px; margin-bottom:12px; }
+  .summary .mono { font-family: var(--font-mono); }
+
+  ul.list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; }
+  .card { display:flex; align-items:flex-start; gap:12px; background: var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .card.done { opacity:.5; }
+  .checkbox { width:22px; height:22px; min-width:22px; border-radius:6px; border:1.5px solid var(--gold); display:flex; align-items:center; justify-content:center; background:transparent; margin-top:2px; padding:0; }
+  .checkbox.checked { background: var(--green); }
+  .card-body { flex:1; min-width:0; }
+  .card-top { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .card-title { color: var(--paper); font-size:15px; font-weight:500; }
+  .card-title.strike { text-decoration: line-through; }
+  .card-amount { color: var(--paper); font-family: var(--font-mono); font-size:14px; white-space:nowrap; }
+  .card-meta { display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap; }
+  .pill { font-size:10px; font-family: var(--font-mono); border:1px solid; border-radius:20px; padding:2px 8px; display:inline-flex; align-items:center; gap:3px; }
+  .notes { font-size:12px; color: var(--paper-dim); font-style: italic; }
+  .delete-btn { background:none; border:none; padding:4px; margin-top:2px; }
+
+  .empty { text-align:center; padding:56px 20px; }
+  .empty-icon { width:56px; height:56px; border-radius:50%; border:1.5px dashed var(--gold); display:flex; align-items:center; justify-content:center; margin:0 auto 14px; font-size:22px; }
+  .empty-title { color: var(--paper); font-family: var(--font-display); font-size:18px; margin:0 0 4px; }
+  .empty-text { color: var(--paper-dim); font-size:13px; margin:0; }
+
+  .fab { position:fixed; bottom: calc(88px + env(safe-area-inset-bottom)); right: calc(50% - 210px); width:54px; height:54px; border-radius:50%; background: var(--gold); border:none; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(0,0,0,.35); font-size:26px; color: var(--ink); }
+  @media (max-width:480px){ .fab { right:20px; } }
+
+  nav.tabbar { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; display:flex; background: var(--bg-deep); border-top:1px solid var(--line); padding:10px 20px calc(18px + env(safe-area-inset-bottom)); }
+  .tab-btn { flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:4px; position:relative; color: var(--paper-dim); font-size:20px; }
+  .tab-btn.active { color: var(--gold); }
+  .tab-label { font-size:11px; font-family: var(--font-mono); }
+  .tab-dot { position:absolute; top:-10px; width:4px; height:4px; border-radius:50%; background: var(--gold); }
+
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:flex-end; z-index:50; }
+  .sheet { width:100%; max-width:480px; margin:0 auto; background: var(--bg); border-radius:20px 20px 0 0; padding:10px 20px calc(28px + env(safe-area-inset-bottom)); max-height:88vh; overflow-y:auto; border-top:1px solid var(--line); }
+  .sheet-handle { width:36px; height:4px; border-radius:2px; background: var(--line); margin:6px auto 14px; }
+  .sheet-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .sheet-title { color: var(--paper); font-family: var(--font-display); font-size:20px; margin:0; }
+  .close-btn { background:none; border:none; padding:4px; color: var(--paper); font-size:20px; }
+  .form { display:flex; flex-direction:column; gap:14px; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field-label { font-size:12px; color: var(--paper-dim); font-family: var(--font-mono); }
+  .input { background: var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; color: var(--paper); font-size:15px; width:100%; }
+  .segmented { display:flex; gap:8px; }
+  .segment-btn { flex:1; padding:10px 8px; border-radius:8px; border:1px solid var(--line); font-size:13px; background:transparent; color: var(--paper); }
+  .segment-btn.active-alta { background: var(--red); color: var(--ink); }
+  .segment-btn.active-media { background: var(--gold); color: var(--ink); }
+  .segment-btn.active-baja { background: var(--green); color: var(--ink); }
+  .segment-btn.active-prestado { background: var(--green); color: var(--ink); }
+  .segment-btn.active-recibido { background: var(--red); color: var(--ink); }
+  .save-btn { width:100%; margin-top:22px; padding:14px; border-radius:12px; border:none; background: var(--gold); color: var(--ink); font-weight:600; font-size:15px; }
+  .save-btn:disabled { opacity:.4; }
+  .error-banner { margin:12px 20px 0; padding:10px 14px; background:rgba(193,80,61,.15); border:1px solid var(--red); border-radius:8px; color: var(--red); font-size:13px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ---------- Almacenamiento local (en este teléfono) ----------
+const DB_KEY = "libreta_data_v1";
+function loadData() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    return raw ? JSON.parse(raw) : { productos: [], prestamos: [] };
+  } catch (e) {
+    return { productos: [], prestamos: [] };
+  }
+}
+function saveData(data) {
+  try { localStorage.setItem(DB_KEY, JSON.stringify(data)); }
+  catch (e) { showError("No se pudo guardar. Espacio lleno o navegador privado."); }
+}
+
+let state = loadData();
+let currentTab = "productos";
+let errorMsg = "";
+
+const PRIORIDADES = [
+  { id: "alta", label: "Alta", color: "var(--red)" },
+  { id: "media", label: "Media", color: "var(--gold)" },
+  { id: "baja", label: "Baja", color: "var(--green)" },
+];
+
+function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+function fmt(n) { return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 2 }).format(Number(n) || 0); }
+function showError(msg) { errorMsg = msg; render(); setTimeout(() => { errorMsg = ""; render(); }, 4000); }
+
+function render() {
+  const productos = state.productos;
+  const prestamos = state.prestamos;
+  const totalWishlist = productos.reduce((s, p) => p.comprado ? s : s + Number(p.precio || 0), 0);
+  const meDeben = prestamos.filter(p => p.tipo === "prestado" && !p.pagado).reduce((s, p) => s + Number(p.monto || 0), 0);
+  const debo = prestamos.filter(p => p.tipo === "recibido" && !p.pagado).reduce((s, p) => s + Number(p.monto || 0), 0);
+  const saldo = meDeben - debo;
+
+  let listHtml = "";
+  if (currentTab === "productos") {
+    if (productos.length === 0) {
+      listHtml = emptyState("🛍️", "Sin productos", "Anota lo que quieres comprar y su precio.");
+    } else {
+      const sorted = [...productos].sort((a, b) => Number(a.comprado) - Number(b.comprado));
+      listHtml = `<ul class="list">${sorted.map(productoCard).join("")}</ul>`;
+    }
+  } else {
+    if (prestamos.length === 0) {
+      listHtml = emptyState("🤝", "Sin préstamos", "Registra dinero que prestaste o que te prestaron.");
+    } else {
+      const sorted = [...prestamos].sort((a, b) => Number(a.pagado) - Number(b.pagado));
+      listHtml = `<ul class="list">${sorted.map(prestamoCard).join("")}</ul>`;
+    }
+  }
+
+  const summary = currentTab === "productos"
+    ? `${productos.filter(p => !p.comprado).length} pendientes · <span class="mono">${fmt(totalWishlist)}</span>`
+    : `<span class="mono" style="color:var(--green)">${fmt(meDeben)}</span> me deben · <span class="mono" style="color:var(--red)">${fmt(debo)}</span> debo`;
+
+  document.getElementById("app").innerHTML = `
+    <header>
+      <div>
+        <p class="eyebrow">MI LIBRETA</p>
+        <h1>Cuentas claras</h1>
+      </div>
+      <div class="stamp">
+        <span class="stamp-label">SALDO</span>
+        <span class="stamp-amount" style="color:${saldo >= 0 ? 'var(--green)' : 'var(--red)'}">${saldo >= 0 ? '+' : ''}${fmt(saldo)}</span>
+      </div>
+    </header>
+    ${errorMsg ? `<div class="error-banner">${errorMsg}</div>` : ""}
+    <main>
+      <div class="summary">${summary}</div>
+      ${listHtml}
+    </main>
+    <button class="fab" onclick="openForm()" aria-label="Agregar">+</button>
+    <nav class="tabbar">
+      <button class="tab-btn ${currentTab === 'productos' ? 'active' : ''}" onclick="setTab('productos')">
+        🛍️<span class="tab-label">Productos</span>${currentTab === 'productos' ? '<span class="tab-dot"></span>' : ''}
+      </button>
+      <button class="tab-btn ${currentTab === 'prestamos' ? 'active' : ''}" onclick="setTab('prestamos')">
+        🤝<span class="tab-label">Préstamos</span>${currentTab === 'prestamos' ? '<span class="tab-dot"></span>' : ''}
+      </button>
+    </nav>
+    <div id="sheet-container"></div>
+  `;
+}
+
+function emptyState(icon, title, text) {
+  return `<div class="empty"><div class="empty-icon">${icon}</div><p class="empty-title">${title}</p><p class="empty-text">${text}</p></div>`;
+}
+
+function productoCard(p) {
+  const pr = PRIORIDADES.find(x => x.id === p.prioridad) || PRIORIDADES[1];
+  return `
+    <li class="card ${p.comprado ? 'done' : ''}">
+      <button class="checkbox ${p.comprado ? 'checked' : ''}" onclick="toggleProducto('${p.id}')" aria-label="Marcar">
+        ${p.comprado ? '✓' : ''}
+      </button>
+      <div class="card-body">
+        <div class="card-top">
+          <span class="card-title ${p.comprado ? 'strike' : ''}">${escapeHtml(p.nombre)}</span>
+          <span class="card-amount">${fmt(p.precio)}</span>
+        </div>
+        <div class="card-meta">
+          <span class="pill" style="border-color:${pr.color}; color:${pr.color}">${pr.label}</span>
+          ${p.notas ? `<span class="notes">${escapeHtml(p.notas)}</span>` : ""}
+        </div>
+      </div>
+      <button class="delete-btn" onclick="deleteProducto('${p.id}')" aria-label="Eliminar">🗑</button>
+    </li>`;
+}
+
+function prestamoCard(p) {
+  const esMeDeben = p.tipo === "prestado";
+  const color = esMeDeben ? "var(--green)" : "var(--red)";
+  return `
+    <li class="card ${p.pagado ? 'done' : ''}">
+      <button class="checkbox ${p.pagado ? 'checked' : ''}" onclick="togglePrestamo('${p.id}')" aria-label="Marcar">
+        ${p.pagado ? '✓' : ''}
+      </button>
+      <div class="card-body">
+        <div class="card-top">
+          <span class="card-title ${p.pagado ? 'strike' : ''}">${escapeHtml(p.persona)}</span>
+          <span class="card-amount" style="color:${color}">${esMeDeben ? '+' : '−'}${fmt(p.monto)}</span>
+        </div>
+        <div class="card-meta">
+          <span class="pill" style="border-color:${color}; color:${color}">${esMeDeben ? '↙ Me debe' : '↗ Le debo'}</span>
+          ${p.fecha ? `<span class="notes">${p.fecha}</span>` : ""}
+          ${p.notas ? `<span class="notes">${escapeHtml(p.notas)}</span>` : ""}
+        </div>
+      </div>
+      <button class="delete-btn" onclick="deletePrestamo('${p.id}')" aria-label="Eliminar">🗑</button>
+    </li>`;
+}
+
+function escapeHtml(s) { const d = document.createElement("div"); d.innerText = s || ""; return d.innerHTML; }
+
+function setTab(tab) { currentTab = tab; render(); }
+
+function toggleProducto(id) {
+  state.productos = state.productos.map(p => p.id === id ? { ...p, comprado: !p.comprado } : p);
+  saveData(state); render();
+}
+function deleteProducto(id) {
+  state.productos = state.productos.filter(p => p.id !== id);
+  saveData(state); render();
+}
+function togglePrestamo(id) {
+  state.prestamos = state.prestamos.map(p => p.id === id ? { ...p, pagado: !p.pagado } : p);
+  saveData(state); render();
+}
+function deletePrestamo(id) {
+  state.prestamos = state.prestamos.filter(p => p.id !== id);
+  saveData(state); render();
+}
+
+// ---------- Formulario ----------
+let formPrioridad = "media";
+let formTipo = "prestado";
+
+function openForm() {
+  formPrioridad = "media";
+  formTipo = "prestado";
+  const isProductos = currentTab === "productos";
+  const today = new Date().toISOString().slice(0, 10);
+
+  const productoForm = `
+    <div class="field"><span class="field-label">¿Qué quieres comprar?</span>
+      <input class="input" id="f-nombre" placeholder="Ej. Audífonos" /></div>
+    <div class="field"><span class="field-label">Precio</span>
+      <input class="input" id="f-precio" type="number" inputmode="decimal" placeholder="0.00" /></div>
+    <div class="field"><span class="field-label">Prioridad</span>
+      <div class="segmented" id="f-prioridad-group">
+        ${PRIORIDADES.map(pr => `<button type="button" class="segment-btn ${pr.id === formPrioridad ? 'active-' + pr.id : ''}" data-id="${pr.id}" onclick="selectPrioridad('${pr.id}')">${pr.label}</button>`).join("")}
+      </div></div>
+    <div class="field"><span class="field-label">Notas (opcional)</span>
+      <input class="input" id="f-notas" placeholder="Ej. Comprar en oferta" /></div>
+  `;
+
+  const prestamoForm = `
+    <div class="field"><span class="field-label">Tipo de préstamo</span>
+      <div class="segmented" id="f-tipo-group">
+        <button type="button" class="segment-btn active-prestado" data-id="prestado" onclick="selectTipo('prestado')">Yo presté</button>
+        <button type="button" class="segment-btn" data-id="recibido" onclick="selectTipo('recibido')">Me prestaron</button>
+      </div></div>
+    <div class="field"><span class="field-label" id="f-persona-label">¿A quién?</span>
+      <input class="input" id="f-persona" placeholder="Nombre" /></div>
+    <div class="field"><span class="field-label">Monto</span>
+      <input class="input" id="f-monto" type="number" inputmode="decimal" placeholder="0.00" /></div>
+    <div class="field"><span class="field-label">Fecha</span>
+      <input class="input" id="f-fecha" type="date" value="${today}" /></div>
+    <div class="field"><span class="field-label">Notas (opcional)</span>
+      <input class="input" id="f-notas" placeholder="Ej. Para gasolina" /></div>
+  `;
+
+  document.getElementById("sheet-container").innerHTML = `
+    <div class="overlay" onclick="closeForm(event)">
+      <div class="sheet" onclick="event.stopPropagation()">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title">${isProductos ? "Nuevo producto" : "Nuevo préstamo"}</h2>
+          <button class="close-btn" onclick="closeForm()">✕</button>
+        </div>
+        <div class="form">${isProductos ? productoForm : prestamoForm}</div>
+        <button class="save-btn" id="f-save" onclick="saveForm()">Guardar</button>
+      </div>
+    </div>
+  `;
+}
+
+function selectPrioridad(id) {
+  formPrioridad = id;
+  document.querySelectorAll("#f-prioridad-group .segment-btn").forEach(b => {
+    b.className = "segment-btn" + (b.dataset.id === id ? " active-" + id : "");
+  });
+}
+function selectTipo(id) {
+  formTipo = id;
+  document.querySelectorAll("#f-tipo-group .segment-btn").forEach(b => {
+    b.className = "segment-btn" + (b.dataset.id === id ? " active-" + id : "");
+  });
+  document.getElementById("f-persona-label").innerText = id === "prestado" ? "¿A quién?" : "¿Quién te prestó?";
+}
+
+function closeForm(e) { if (e) e.stopPropagation(); document.getElementById("sheet-container").innerHTML = ""; }
+
+function saveForm() {
+  if (currentTab === "productos") {
+    const nombre = document.getElementById("f-nombre").value.trim();
+    const precio = document.getElementById("f-precio").value;
+    const notas = document.getElementById("f-notas").value.trim();
+    if (!nombre || !precio) return;
+    state.productos.push({ id: uid(), nombre, precio: Number(precio), prioridad: formPrioridad, notas, comprado: false });
+  } else {
+    const persona = document.getElementById("f-persona").value.trim();
+    const monto = document.getElementById("f-monto").value;
+    const fecha = document.getElementById("f-fecha").value;
+    const notas = document.getElementById("f-notas").value.trim();
+    if (!persona || !monto) return;
+    state.prestamos.push({ id: uid(), persona, monto: Number(monto), tipo: formTipo, fecha, notas, pagado: false });
+  }
+  saveData(state);
+  closeForm();
+  render();
+}
+
+render();
+
+// ---------- Registro del service worker (para que funcione sin internet) ----------
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
