@@ -476,6 +476,30 @@ function ventaCard(v) {
     </li>`;
 }
 
+// ---------- Confirmación personalizada ----------
+let confirmCallback = null;
+function askConfirm(message, callback) {
+  confirmCallback = callback;
+  document.getElementById("sheet-container").innerHTML = `
+    <div class="overlay" onclick="cancelConfirm()">
+      <div class="sheet" onclick="event.stopPropagation()">
+        <div class="sheet-handle"></div>
+        <p style="color:var(--paper); font-size:15px; margin:10px 4px 22px; text-align:center; line-height:1.5;">${escapeHtml(message)}</p>
+        <div style="display:flex; gap:10px;">
+          <button class="segment-btn" style="flex:1;" onclick="cancelConfirm()">Cancelar</button>
+          <button class="segment-btn" style="flex:1; background:var(--red); color:var(--ink); border-color:var(--red);" onclick="confirmYes()">Eliminar</button>
+        </div>
+      </div>
+    </div>`;
+}
+function cancelConfirm() { confirmCallback = null; document.getElementById("sheet-container").innerHTML = ""; }
+function confirmYes() {
+  const cb = confirmCallback;
+  confirmCallback = null;
+  document.getElementById("sheet-container").innerHTML = "";
+  if (cb) cb();
+}
+
 function setTab(tab) { currentTab = tab; selectedIds.clear(); showSearch = false; searchQuery = ""; selectedCategoria = "Todas"; render(); }
 function toggleSearch() { showSearch = !showSearch; if (!showSearch) searchQuery = ""; render(); }
 function onSearch(v) { searchQuery = v; render(); }
@@ -487,11 +511,12 @@ function toggleProducto(id) {
   saveData(appData); render();
 }
 function deleteProducto(id) {
-  if (!window.confirm("¿Seguro que quieres eliminar este producto? No se puede deshacer.")) return;
-  const lib = activeLibreta();
-  selectedIds.delete(id);
-  lib.productos = lib.productos.filter(p => p.id !== id);
-  saveData(appData); render();
+  askConfirm("¿Seguro que quieres eliminar este producto? No se puede deshacer.", () => {
+    const lib = activeLibreta();
+    selectedIds.delete(id);
+    lib.productos = lib.productos.filter(p => p.id !== id);
+    saveData(appData); render();
+  });
 }
 function editProducto(id) {
   const lib = activeLibreta();
@@ -506,10 +531,11 @@ function togglePrestamo(id) {
   saveData(appData); render();
 }
 function deletePrestamo(id) {
-  if (!window.confirm("¿Seguro que quieres eliminar este registro? No se puede deshacer.")) return;
-  const lib = activeLibreta();
-  lib.prestamos = lib.prestamos.filter(p => p.id !== id);
-  saveData(appData); render();
+  askConfirm("¿Seguro que quieres eliminar este registro? No se puede deshacer.", () => {
+    const lib = activeLibreta();
+    lib.prestamos = lib.prestamos.filter(p => p.id !== id);
+    saveData(appData); render();
+  });
 }
 function editPrestamo(id) {
   const lib = activeLibreta();
@@ -835,12 +861,13 @@ function crearLibreta() {
 function eliminarLibreta(id) {
   if (appData.libretas.length <= 1) return;
   const lib = appData.libretas.find(l => l.id === id);
-  if (!window.confirm(`¿Eliminar la libreta "${lib.nombre}" y todo lo que tiene guardado? Esto no se puede deshacer.`)) return;
-  appData.libretas = appData.libretas.filter(l => l.id !== id);
-  if (appData.activeLibretaId === id) appData.activeLibretaId = appData.libretas[0].id;
-  saveData(appData);
-  renderLibretaSwitcher();
-  showToast("Libreta eliminada");
+  askConfirm(`¿Eliminar la libreta "${lib.nombre}" y todo lo que tiene guardado? Esto no se puede deshacer.`, () => {
+    appData.libretas = appData.libretas.filter(l => l.id !== id);
+    if (appData.activeLibretaId === id) appData.activeLibretaId = appData.libretas[0].id;
+    saveData(appData);
+    renderLibretaSwitcher();
+    showToast("Libreta eliminada");
+  });
 }
 
 render();
