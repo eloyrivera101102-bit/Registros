@@ -579,9 +579,11 @@ function resetVenta(id) {
   saveData(appData); render();
 }
 function deleteVenta(id) {
-  const lib = activeLibreta();
-  lib.ventas = lib.ventas.filter(v => v.id !== id);
-  saveData(appData); render();
+  askConfirm("¿Seguro que quieres eliminar este producto de ventas? No se puede deshacer.", () => {
+    const lib = activeLibreta();
+    lib.ventas = lib.ventas.filter(v => v.id !== id);
+    saveData(appData); render();
+  });
 }
 
 // ---------- Formulario de agregar/editar ----------
