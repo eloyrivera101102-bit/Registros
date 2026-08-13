@@ -487,6 +487,7 @@ function toggleProducto(id) {
   saveData(appData); render();
 }
 function deleteProducto(id) {
+  if (!window.confirm("¿Seguro que quieres eliminar este producto? No se puede deshacer.")) return;
   const lib = activeLibreta();
   selectedIds.delete(id);
   lib.productos = lib.productos.filter(p => p.id !== id);
@@ -505,6 +506,7 @@ function togglePrestamo(id) {
   saveData(appData); render();
 }
 function deletePrestamo(id) {
+  if (!window.confirm("¿Seguro que quieres eliminar este registro? No se puede deshacer.")) return;
   const lib = activeLibreta();
   lib.prestamos = lib.prestamos.filter(p => p.id !== id);
   saveData(appData); render();
@@ -571,7 +573,7 @@ function openForm(prefill) {
     <div class="form-row">
       <div class="field"><span class="field-label">Cantidad</span>
         <input class="input" id="f-cantidad" type="number" inputmode="numeric" min="1" value="${prefill ? prefill.cantidad : 1}" /></div>
-      <div class="field"><span class="field-label">Precio unitario</span>
+      <div class="field"><span class="field-label">Precio</span>
         <input class="input" id="f-precio" type="number" inputmode="decimal" placeholder="0.00" value="${prefill ? prefill.precio : ''}" /></div>
     </div>
     <div class="field"><span class="field-label">Categoría (opcional)</span>
