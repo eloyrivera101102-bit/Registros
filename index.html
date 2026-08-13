@@ -165,6 +165,7 @@ let errorMsg = "";
 let selectedIds = new Set();
 let searchQuery = "";
 let showSearch = false;
+let editingId = null;
 
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 function fmt(n) { return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 2 }).format(Number(n) || 0); }
@@ -348,7 +349,10 @@ function prestamoCard(p) {
         </div>
         ${p.descripcion ? `<div class="card-meta"><span class="notes">${escapeHtml(p.descripcion)}</span></div>` : ""}
       </div>
-      <button class="delete-btn" onclick="deletePrestamo('${p.id}')" aria-label="Eliminar">🗑</button>
+      <div class="card-actions">
+        <button class="delete-btn" onclick="editPrestamo('${p.id}')" aria-label="Editar">✏️</button>
+        <button class="delete-btn" onclick="deletePrestamo('${p.id}')" aria-label="Eliminar">🗑</button>
+      </div>
     </li>`;
 }
 
@@ -421,6 +425,12 @@ function deletePrestamo(id) {
   state.prestamos = state.prestamos.filter(p => p.id !== id);
   saveData(state); render();
 }
+function editPrestamo(id) {
+  const p = state.prestamos.find(x => x.id === id);
+  if (!p) return;
+  editingId = id;
+  openForm(p);
+}
 
 function toggleSelect(id) {
   if (selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
@@ -450,8 +460,8 @@ function shareAll() {
 // ---------- Formulario ----------
 let formTipo = "prestado";
 
-function openForm() {
-  formTipo = "prestado";
+function openForm(prefill) {
+  formTipo = (prefill && prefill.tipo) || "prestado";
   const isProductos = currentTab === "productos";
   const isVentas = currentTab === "ventas";
   const today = new Date().toISOString().slice(0, 10);
@@ -472,19 +482,19 @@ function openForm() {
   const prestamoForm = `
     <div class="field"><span class="field-label">Tipo</span>
       <div class="segmented" id="f-tipo-group">
-        <button type="button" class="segment-btn active-prestado" data-id="prestado" onclick="selectTipo('prestado')">Yo presté / fié</button>
-        <button type="button" class="segment-btn" data-id="recibido" onclick="selectTipo('recibido')">Me prestaron / fiaron</button>
+        <button type="button" class="segment-btn ${formTipo === 'prestado' ? 'active-prestado' : ''}" data-id="prestado" onclick="selectTipo('prestado')">Yo presté / fié</button>
+        <button type="button" class="segment-btn ${formTipo === 'recibido' ? 'active-recibido' : ''}" data-id="recibido" onclick="selectTipo('recibido')">Me prestaron / fiaron</button>
       </div></div>
-    <div class="field"><span class="field-label" id="f-persona-label">¿A quién?</span>
-      <input class="input" id="f-persona" placeholder="Nombre" /></div>
+    <div class="field"><span class="field-label" id="f-persona-label">${formTipo === 'recibido' ? '¿Quién te prestó/fió?' : '¿A quién?'}</span>
+      <input class="input" id="f-persona" placeholder="Nombre" value="${prefill ? escapeHtml(prefill.persona) : ''}" /></div>
     <div class="form-row">
       <div class="field"><span class="field-label">Monto</span>
-        <input class="input" id="f-monto" type="number" inputmode="decimal" placeholder="0.00" /></div>
+        <input class="input" id="f-monto" type="number" inputmode="decimal" placeholder="0.00" value="${prefill ? prefill.monto : ''}" /></div>
       <div class="field"><span class="field-label">Fecha</span>
-        <input class="input" id="f-fecha" type="date" value="${today}" /></div>
+        <input class="input" id="f-fecha" type="date" value="${prefill ? prefill.fecha : today}" /></div>
     </div>
     <div class="field"><span class="field-label">Descripción (opcional)</span>
-      <textarea class="input" id="f-descripcion" rows="2" placeholder="Ej. Para gasolina, motivo del préstamo..."></textarea></div>
+      <textarea class="input" id="f-descripcion" rows="2" placeholder="Ej. Para gasolina, motivo del préstamo...">${prefill ? escapeHtml(prefill.descripcion || '') : ''}</textarea></div>
   `;
 
   const ventaForm = `
@@ -501,7 +511,7 @@ function openForm() {
   let title, formHtml;
   if (isVentas) { title = "Nuevo producto en venta"; formHtml = ventaForm; }
   else if (isProductos) { title = "Nuevo producto"; formHtml = productoForm; }
-  else { title = "Nuevo préstamo / fiado"; formHtml = prestamoForm; }
+  else { title = editingId ? "Editar préstamo / fiado" : "Nuevo préstamo / fiado"; formHtml = prestamoForm; }
 
   document.getElementById("sheet-container").innerHTML = `
     <div class="overlay" onclick="closeForm(event)">
@@ -512,7 +522,7 @@ function openForm() {
           <button class="close-btn" onclick="closeForm()">✕</button>
         </div>
         <div class="form">${formHtml}</div>
-        <button class="save-btn" id="f-save" onclick="saveForm()">Guardar</button>
+        <button class="save-btn" id="f-save" onclick="saveForm()">${editingId ? "Guardar cambios" : "Guardar"}</button>
       </div>
     </div>
   `;
@@ -526,7 +536,7 @@ function selectTipo(id) {
   document.getElementById("f-persona-label").innerText = id === "prestado" ? "¿A quién?" : "¿Quién te prestó/fió?";
 }
 
-function closeForm(e) { if (e) e.stopPropagation(); document.getElementById("sheet-container").innerHTML = ""; }
+function closeForm(e) { if (e) e.stopPropagation(); editingId = null; document.getElementById("sheet-container").innerHTML = ""; }
 
 function saveForm() {
   if (currentTab === "ventas") {
@@ -548,7 +558,14 @@ function saveForm() {
     const fecha = document.getElementById("f-fecha").value;
     const descripcion = document.getElementById("f-descripcion").value.trim();
     if (!persona || !monto) return;
-    state.prestamos.push({ id: uid(), persona, monto: Number(monto), tipo: formTipo, fecha, descripcion, pagado: false });
+    if (editingId) {
+      state.prestamos = state.prestamos.map(p => p.id === editingId
+        ? { ...p, persona, monto: Number(monto), tipo: formTipo, fecha, descripcion }
+        : p);
+      editingId = null;
+    } else {
+      state.prestamos.push({ id: uid(), persona, monto: Number(monto), tipo: formTipo, fecha, descripcion, pagado: false });
+    }
   }
   saveData(state);
   closeForm();
