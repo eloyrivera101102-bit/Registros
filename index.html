@@ -105,6 +105,24 @@
   .save-btn:disabled { opacity:.4; }
   .error-banner { margin:12px 20px 0; padding:10px 14px; background:rgba(193,80,61,.15); border:1px solid var(--red); border-radius:8px; color: var(--red); font-size:13px; }
   .toast { position:fixed; top: max(16px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%); background: var(--card); border:1px solid var(--gold); color: var(--paper); padding:10px 16px; border-radius:10px; font-size:13px; z-index:60; }
+
+  .venta-card { flex-direction:column; align-items:stretch; gap:10px; }
+  .venta-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .venta-title { color: var(--paper); font-size:15px; font-weight:500; }
+  .venta-price { color: var(--paper-dim); font-family: var(--font-mono); font-size:12px; margin-top:2px; }
+  .venta-stats { display:flex; gap:16px; }
+  .venta-stat { display:flex; flex-direction:column; }
+  .venta-stat-label { font-size:10px; color: var(--paper-dim); font-family: var(--font-mono); letter-spacing:.05em; }
+  .venta-stat-value { font-size:18px; font-family: var(--font-mono); font-weight:600; color: var(--gold); }
+  .venta-stat-value.income { color: var(--green); font-size:15px; }
+  .venta-controls { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .stepper { display:flex; align-items:center; gap:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .stepper button { background: var(--card); border:none; color: var(--paper); width:40px; height:38px; font-size:18px; }
+  .stepper button:active { background: var(--line); }
+  .stepper button.plus { color: var(--green); }
+  .stepper button.minus { color: var(--red); }
+  .venta-mini-actions { display:flex; gap:8px; }
+  .mini-btn { background:none; border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:11px; color: var(--paper-dim); font-family: var(--font-mono); }
 </style>
 </head>
 <body>
@@ -126,12 +144,13 @@ function loadData() {
           id: p.id, nombre: p.nombre, cantidad: 1, precio: p.precio,
           descripcion: p.notas || "", comprado: !!p.comprado
         })),
-        prestamos: o.prestamos || []
+        prestamos: o.prestamos || [],
+        ventas: []
       };
     }
-    return { productos: [], prestamos: [] };
+    return { productos: [], prestamos: [], ventas: [] };
   } catch (e) {
-    return { productos: [], prestamos: [] };
+    return { productos: [], prestamos: [], ventas: [] };
   }
 }
 function saveData(data) {
@@ -140,6 +159,7 @@ function saveData(data) {
 }
 
 let state = loadData();
+if (!state.ventas) state.ventas = [];
 let currentTab = "productos";
 let errorMsg = "";
 let selectedIds = new Set();
@@ -172,6 +192,7 @@ function diasDesde(fechaStr) {
 function render() {
   let productos = state.productos;
   let prestamos = state.prestamos;
+  let ventas = state.ventas;
 
   if (currentTab === "productos" && searchQuery.trim()) {
     const q = searchQuery.trim().toLowerCase();
@@ -185,8 +206,18 @@ function render() {
   const debo = state.prestamos.filter(p => p.tipo === "recibido" && !p.pagado).reduce((s, p) => s + Number(p.monto || 0), 0);
   const saldo = meDeben - debo;
 
+  const totalUnidadesVendidas = state.ventas.reduce((s, v) => s + Number(v.vendidos || 0), 0);
+  const totalIngresos = state.ventas.reduce((s, v) => s + Number(v.vendidos || 0) * Number(v.precio || 0), 0);
+
   let listHtml = "";
-  if (currentTab === "productos") {
+  if (currentTab === "ventas") {
+    if (ventas.length === 0) {
+      listHtml = emptyState("📈", "Sin productos en venta", "Agrega un producto y lleva la cuenta de cuántos vas vendiendo.");
+    } else {
+      const sorted = [...ventas].sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+      listHtml = `<ul class="list">${sorted.map(ventaCard).join("")}</ul>`;
+    }
+  } else if (currentTab === "productos") {
     if (productos.length === 0) {
       listHtml = state.productos.length === 0
         ? emptyState("🛍️", "Sin productos", "Anota lo que quieres comprar: nombre, cantidad, precio y descripción.")
@@ -207,9 +238,14 @@ function render() {
     }
   }
 
-  const summaryLeft = currentTab === "productos"
-    ? `${state.productos.filter(p => !p.comprado).length} pendientes · <span class="mono">${fmt(totalWishlist)}</span>`
-    : `<span class="mono" style="color:var(--green)">${fmt(meDeben)}</span> me deben · <span class="mono" style="color:var(--red)">${fmt(debo)}</span> debo`;
+  let summaryLeft;
+  if (currentTab === "productos") {
+    summaryLeft = `${state.productos.filter(p => !p.comprado).length} pendientes · <span class="mono">${fmt(totalWishlist)}</span>`;
+  } else if (currentTab === "ventas") {
+    summaryLeft = `<span class="mono" style="color:var(--gold)">${totalUnidadesVendidas}</span> unidades vendidas · <span class="mono" style="color:var(--green)">${fmt(totalIngresos)}</span> ingresos`;
+  } else {
+    summaryLeft = `<span class="mono" style="color:var(--green)">${fmt(meDeben)}</span> me deben · <span class="mono" style="color:var(--red)">${fmt(debo)}</span> debo`;
+  }
 
   const toolbarHtml = currentTab === "productos" ? `
     <div class="toolbar">
@@ -250,6 +286,9 @@ function render() {
       </button>
       <button class="tab-btn ${currentTab === 'prestamos' ? 'active' : ''}" onclick="setTab('prestamos')">
         🤝<span class="tab-label">Préstamos</span>${currentTab === 'prestamos' ? '<span class="tab-dot"></span>' : ''}
+      </button>
+      <button class="tab-btn ${currentTab === 'ventas' ? 'active' : ''}" onclick="setTab('ventas')">
+        📈<span class="tab-label">Ventas</span>${currentTab === 'ventas' ? '<span class="tab-dot"></span>' : ''}
       </button>
     </nav>
     <div id="sheet-container"></div>
@@ -313,6 +352,54 @@ function prestamoCard(p) {
     </li>`;
 }
 
+function ventaCard(v) {
+  const vendidos = Number(v.vendidos || 0);
+  const ingreso = vendidos * Number(v.precio || 0);
+  return `
+    <li class="card venta-card">
+      <div class="venta-top">
+        <div>
+          <div class="venta-title">${escapeHtml(v.nombre)}</div>
+          <div class="venta-price">Precio: ${fmt(v.precio)}</div>
+        </div>
+        <button class="delete-btn" onclick="deleteVenta('${v.id}')" aria-label="Eliminar">🗑</button>
+      </div>
+      <div class="venta-stats">
+        <div class="venta-stat">
+          <span class="venta-stat-label">VENDIDOS</span>
+          <span class="venta-stat-value">${vendidos}</span>
+        </div>
+        <div class="venta-stat">
+          <span class="venta-stat-label">INGRESOS</span>
+          <span class="venta-stat-value income">${fmt(ingreso)}</span>
+        </div>
+      </div>
+      <div class="venta-controls">
+        <div class="stepper">
+          <button class="minus" onclick="incVenta('${v.id}', -1)" aria-label="Restar una venta">−</button>
+          <button class="plus" onclick="incVenta('${v.id}', 1)" aria-label="Sumar una venta">+</button>
+        </div>
+        <div class="venta-mini-actions">
+          <button class="mini-btn" onclick="incVenta('${v.id}', 5)">+5</button>
+          <button class="mini-btn" onclick="resetVenta('${v.id}')">Reiniciar</button>
+        </div>
+      </div>
+    </li>`;
+}
+
+function incVenta(id, delta) {
+  state.ventas = state.ventas.map(v => v.id === id ? { ...v, vendidos: Math.max(0, Number(v.vendidos || 0) + delta) } : v);
+  saveData(state); render();
+}
+function resetVenta(id) {
+  state.ventas = state.ventas.map(v => v.id === id ? { ...v, vendidos: 0 } : v);
+  saveData(state); render();
+}
+function deleteVenta(id) {
+  state.ventas = state.ventas.filter(v => v.id !== id);
+  saveData(state); render();
+}
+
 function setTab(tab) { currentTab = tab; selectedIds.clear(); showSearch = false; searchQuery = ""; render(); }
 function toggleSearch() { showSearch = !showSearch; if (!showSearch) searchQuery = ""; render(); }
 function onSearch(v) { searchQuery = v; render(); }
@@ -342,16 +429,8 @@ function toggleSelect(id) {
 function clearSelection() { selectedIds.clear(); render(); }
 
 function buildListText(items) {
-  let total = 0;
-  const lines = items.map(p => {
-    const cantidad = Number(p.cantidad || 1);
-    const subtotal = Number(p.precio || 0) * cantidad;
-    total += subtotal;
-    let line = `• ${p.nombre} (x${cantidad}) - ${fmt(subtotal)}`;
-    if (p.descripcion) line += `\n   ${p.descripcion}`;
-    return line;
-  });
-  return `🛍️ Mi lista de compras:\n\n${lines.join("\n")}\n\nTotal: ${fmt(total)}`;
+  const lines = items.map(p => `• ${p.nombre} (x${Number(p.cantidad || 1)})`);
+  return `🛍️ Mi lista de compras:\n\n${lines.join("\n")}`;
 }
 
 function shareSelected() {
@@ -374,6 +453,7 @@ let formTipo = "prestado";
 function openForm() {
   formTipo = "prestado";
   const isProductos = currentTab === "productos";
+  const isVentas = currentTab === "ventas";
   const today = new Date().toISOString().slice(0, 10);
 
   const productoForm = `
@@ -407,15 +487,31 @@ function openForm() {
       <textarea class="input" id="f-descripcion" rows="2" placeholder="Ej. Para gasolina, motivo del préstamo..."></textarea></div>
   `;
 
+  const ventaForm = `
+    <div class="field"><span class="field-label">Nombre del producto</span>
+      <input class="input" id="f-nombre" placeholder="Ej. Tacos, playeras, cortes de cabello..." /></div>
+    <div class="form-row">
+      <div class="field"><span class="field-label">Precio por unidad</span>
+        <input class="input" id="f-precio" type="number" inputmode="decimal" placeholder="0.00" /></div>
+      <div class="field"><span class="field-label">Vendidos hasta ahora</span>
+        <input class="input" id="f-vendidos" type="number" inputmode="numeric" min="0" value="0" /></div>
+    </div>
+  `;
+
+  let title, formHtml;
+  if (isVentas) { title = "Nuevo producto en venta"; formHtml = ventaForm; }
+  else if (isProductos) { title = "Nuevo producto"; formHtml = productoForm; }
+  else { title = "Nuevo préstamo / fiado"; formHtml = prestamoForm; }
+
   document.getElementById("sheet-container").innerHTML = `
     <div class="overlay" onclick="closeForm(event)">
       <div class="sheet" onclick="event.stopPropagation()">
         <div class="sheet-handle"></div>
         <div class="sheet-header">
-          <h2 class="sheet-title">${isProductos ? "Nuevo producto" : "Nuevo préstamo / fiado"}</h2>
+          <h2 class="sheet-title">${title}</h2>
           <button class="close-btn" onclick="closeForm()">✕</button>
         </div>
-        <div class="form">${isProductos ? productoForm : prestamoForm}</div>
+        <div class="form">${formHtml}</div>
         <button class="save-btn" id="f-save" onclick="saveForm()">Guardar</button>
       </div>
     </div>
@@ -433,7 +529,13 @@ function selectTipo(id) {
 function closeForm(e) { if (e) e.stopPropagation(); document.getElementById("sheet-container").innerHTML = ""; }
 
 function saveForm() {
-  if (currentTab === "productos") {
+  if (currentTab === "ventas") {
+    const nombre = document.getElementById("f-nombre").value.trim();
+    const precio = document.getElementById("f-precio").value;
+    const vendidos = document.getElementById("f-vendidos").value || "0";
+    if (!nombre || !precio) return;
+    state.ventas.push({ id: uid(), nombre, precio: Number(precio), vendidos: Number(vendidos) });
+  } else if (currentTab === "productos") {
     const nombre = document.getElementById("f-nombre").value.trim();
     const cantidad = document.getElementById("f-cantidad").value || "1";
     const precio = document.getElementById("f-precio").value;
